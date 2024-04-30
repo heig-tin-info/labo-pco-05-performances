@@ -1,0 +1,6 @@
+*.out
+*.d
+*.__pycache__
+*.dat
+*.csv
+.vscode
