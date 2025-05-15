@@ -11,7 +11,8 @@ L'objectif de ce travail pratique et de mettre en évidence certains mécanismes
 
 ## Table des matières <!-- omit in toc -->
 
-- [Objectifs](#objectifs)
+- [Prérequis](#prérequis)
+- [Consignes](#consignes)
 - [Informations du cache](#informations-du-cache)
 - [Installation de Perf](#installation-de-perf)
 - [Expérience n°1 : Prédiction d'embranchements](#expérience-n1--prédiction-dembranchements)
@@ -20,7 +21,11 @@ L'objectif de ce travail pratique et de mettre en évidence certains mécanismes
 - [Expérience n°4 : Cache locality](#expérience-n4--cache-locality)
 - [Conclusion](#conclusion)
 
-## Objectifs
+## Prérequis
+
+- Lire le chapitre [Mémoire cache](https://heig-tin-info.github.io/handbook/course-concurrent/memory/) du cours de programmation concurrente.
+
+## Consignes
 
 - Parcourir la donnée du travail pratique et exécutez les différents programmes.
 - Rédiger un rapport (possiblement avec Jupyter Notebook) pour mettre en évidence vos résultats.
@@ -31,12 +36,12 @@ L'objectif de ce travail pratique et de mettre en évidence certains mécanismes
 
 Sous linux, vous devriez pouvoir obtenir les informations sur le cache mémoire avec la commande:
 
-```
+```bash
 getconf -a | grep CACHE
 ```
 
 1. Combien de niveaux de cache avez-vous sur votre ordinateur ?
-2. Quelle es la taille d'une ligne de cache en bytes ?
+2. Quelle es la taille d'une **ligne de cache** en bytes ?
 3. Quels sont les tailles des caches pour chaque niveau en KiB ?
 
 ## Installation de Perf
