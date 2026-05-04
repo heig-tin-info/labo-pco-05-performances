@@ -1,13 +1,13 @@
 # Labo Performance <!-- omit in toc -->
 
-L'objectif de ce travail pratique et de mettre en évidence certains mécanismes internes au processeur qui limitent les performances d'exécution d'un programme. Ce travail est principalement basé sur l'excellent référentiel de [Kobzol](https://github.com/Kobzol/hardware-effects).
+L'objectif de ce travail pratique est de mettre en évidence certains mécanismes internes au processeur qui limitent les performances d'exécution d'un programme. Ce travail est principalement basé sur l'excellent référentiel de [Kobzol](https://github.com/Kobzol/hardware-effects).
 
-| Type          | Description |
-| ------------- | ----------- |
-| Durée         | 3x45 minutes + Travail à la maison |
-| Rendu         | Sur GitHub |
-| Format | Travail individuel |
-| Évaluation | Sur la base des livrables fournis |
+| Type       | Description                        |
+| ---------- | ---------------------------------- |
+| Durée      | 2x45 minutes + Travail à la maison |
+| Rendu      | Sur GitHub                         |
+| Format     | Travail individuel                 |
+| Évaluation | Sur la base des livrables fournis  |
 
 ## Table des matières <!-- omit in toc -->
 
@@ -32,6 +32,8 @@ L'objectif de ce travail pratique et de mettre en évidence certains mécanismes
 - Rédigez une conclusion personnelle sur ce travail pratique en expliquant ce que vous avez appris
 - Faites un commit et push de votre travail sur GitHub, incluant le rapport.
 
+**Vous pouvez inclure votre rapport à vos notes personnelles pour le livrable de fin de semestre.**
+
 ## Informations du cache
 
 Sous linux, vous devriez pouvoir obtenir les informations sur le cache mémoire avec la commande:
@@ -41,20 +43,22 @@ getconf -a | grep CACHE
 ```
 
 1. Combien de niveaux de cache avez-vous sur votre ordinateur ?
-2. Quelle es la taille d'une **ligne de cache** en bytes ?
+2. Quelle est la taille d'une **ligne de cache** en bytes ?
 3. Quels sont les tailles des caches pour chaque niveau en KiB ?
 
 ## Installation de Perf
 
-Vous aurez besoin de l'outil `perf`. On vous propose la démarche suivante :
+Vous aurez besoin de l'outil `perf`. Sur Ubuntu/Debian/WSL :
 
 ```bash
-git clone --depth 1 https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-cd linux/tools/perf
-sudo apt install flex bison libdw-dev elfutils systemtap-sdt-dev libelf-dev libunwind-dev libcapstone-dev libpfm4-dev libcrypto++-dev perl libperl-dev libcap-dev libzstd-dev libbabeltrace-dev libslang2-dev libtraceevent-dev libssl-dev asciidoc
-make
-cp perf /usr/bin
+sudo apt install linux-tools-common linux-tools-generic linux-tools-$(uname -r)
 ```
+
+Si la dernière commande échoue (notamment sous WSL où le paquet pour le noyau courant n'est pas toujours disponible), repliez-vous sur `linux-tools-generic` seul, ou suivez la procédure de compilation depuis les sources du noyau.
+
+> **Note WSL2 / VM** : la virtualisation peut perturber les compteurs `perf` et les mesures de l'expérience n°2 (DRAM refresh). Les ordres de grandeur restent observables, mais attendez-vous à plus de bruit qu'en bare metal.
+
+> **Note Linux** : si vous utilisez une autre distribution qu'Ubuntu/Debian, la procédure d'installation de `perf` peut différer. Consultez la documentation de votre distribution pour plus d'informations.
 
 ## Expérience n°1 : Prédiction d'embranchements
 
@@ -62,13 +66,14 @@ Prendre connaissance du programme [branch-misprediction.cpp](branch-mispredictio
 
 ```bash
 g++ -O3 -o branch-misprediction branch-misprediction.cpp
-perf -e branches,branch-misses ./branch-misprediction 0
-perf -e branches,branch-misses ./branch-misprediction 1
+perf stat -e branches,branch-misses ./branch-misprediction 0
+perf stat -e branches,branch-misses ./branch-misprediction 1
 ```
 
 1. Quelle est la différence entre les deux exécutions ?
 2. Pouvez-vous expliquer pourquoi ?
-3. Que pensez-vous de la question StackOverflow [Why is it faster to process a sorted array than an unsorted array?](https://stackoverflow.com/questions/11227809/why-is-it-faster-to-process-a-sorted-array-than-an-unsorted-array) et du nombre de upvotes ?
+3. Reportez le ratio `branch-misses / branches` pour les deux exécutions.
+4. Que pensez-vous de la question StackOverflow [Why is it faster to process a sorted array than an unsorted array?](https://stackoverflow.com/questions/11227809/why-is-it-faster-to-process-a-sorted-array-than-an-unsorted-array) et du nombre de upvotes ?
 
 ## Expérience n°2 : Latences de la SDRAM
 
@@ -97,15 +102,24 @@ perf stat -d ./false-sharing 3 8
 ...
 ```
 
+Le premier argument est le **nombre de threads**, le second est le **pas (`increment`)** entre les éléments incrémentés par chaque thread. Comme `sizeof(size_t)` vaut 8 octets et qu'une ligne de cache fait 64 octets, un `increment` de 1 place tous les threads sur la **même ligne de cache** (situation pathologique de *false sharing*), tandis qu'un `increment` de 8 garantit qu'ils sont sur des lignes **distinctes**.
+
 1. Que constatez-vous ?
 2. Comment expliquez-vous ces résultats ?
-3. Quel est le comportement en faisant varier les différents paramètres ?
+3. Quel est le comportement en faisant varier les différents paramètres (nombre de threads, valeurs intermédiaires d'`increment` entre 1 et 8) ?
 
 ## Expérience n°4 : Cache locality
 
-Prendre connaissance du programme [locality.cpp](locality.cpp). Compiler et exécutez le code avec l'option `LINE` activée et désactivée. Ajustez la taille du tableau pour obtenir des temps de calculs significatifs.
+Prendre connaissance du programme [locality.cpp](locality.cpp). Compilez avec et sans la macro `LINE` :
 
-Utilisez `perf` pour votre analyse.
+```bash
+g++ -O3 -DLINE -o locality-line locality.cpp
+g++ -O3       -o locality-col  locality.cpp
+perf stat -e cache-references,cache-misses ./locality-line
+perf stat -e cache-references,cache-misses ./locality-col
+```
+
+Faites varier `N` (par exemple 1000, 2000, 5000, 10000) pour observer l'évolution du rapport entre les deux versions.
 
 1. Que fait le programme
 2. Quelle est la différence entre les deux exécutions ?
@@ -116,3 +130,5 @@ Utilisez `perf` pour votre analyse.
 Rédigez une conclusion personnelle sur ce travail pratique en expliquant ce que vous avez appris.
 
 Expliquez pourquoi les concepts de cache, de prédiction d'embranchements, de latences de la SDRAM, de false sharing et de cache locality sont importants pour un développeur de logiciel, spécialement pour ceux qui souhaitent paralleliser leur code pour obtenir de meilleures performances.
+
+Faites un parallèle avec la programmation concurrente : comment les mécanismes internes du processeur peuvent-ils impacter les performances d'un programme concurrent tournant sur plusieurs threads ou processus ? Quels sont les pièges à éviter et les bonnes pratiques à adopter pour tirer le meilleur parti du matériel tout en évitant les problèmes de performance liés à ces mécanismes ?

@@ -4,3 +4,10 @@
 *.dat
 *.csv
 .vscode
+
+# Compiled binaries
+branch-misprediction
+dram-refresh
+false-sharing
+locality-line
+locality-col
